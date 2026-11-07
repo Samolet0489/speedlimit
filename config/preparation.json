@@ -1,0 +1,8 @@
+{
+  "sensor_type_overrides": {},
+  "event_hour_convention": null,
+  "near_accident_thresholds": null,
+  "assume_event_log_complete": false,
+  "prediction_cutoff": "target_hour_start",
+  "max_feature_age_hours": 1
+}

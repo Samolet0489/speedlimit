@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "policy_id": "course-air-v1",
+  "purpose": "Illustrative speed caps for the SpeedLimit course simulator",
+  "aqi_scale": "European AQI",
+  "aqi_rounding": "ceil",
+  "max_data_age_minutes": 60,
+  "max_pollutant_ug_m3": 5000,
+  "bands": [
+    {"min_aqi": 0, "max_aqi": 20, "limit_kmh": 80, "reason_code": "good"},
+    {"min_aqi": 21, "max_aqi": 40, "limit_kmh": 70, "reason_code": "fair"},
+    {"min_aqi": 41, "max_aqi": 60, "limit_kmh": 60, "reason_code": "moderate"},
+    {"min_aqi": 61, "max_aqi": 80, "limit_kmh": 50, "reason_code": "poor"},
+    {"min_aqi": 81, "max_aqi": 500, "limit_kmh": 40, "reason_code": "very_poor_or_worse"}
+  ]
+}

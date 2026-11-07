@@ -1,0 +1,20 @@
+# Ignore everything except the files listed below.
+*
+!/.gitignore
+!/README.md
+!/run.py
+
+!/speedlimit/
+!/speedlimit/*.py
+!/tests/
+!/tests/*.py
+!/tools/
+!/tools/*.py
+!/tools/setup_ollama.ps1
+
+!/config/
+!/config/air_policy.json
+!/config/preparation.json
+!/config/experiments/
+!/config/experiments/primary.json
+!/config/experiments/alternate_clock.json

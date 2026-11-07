@@ -1,0 +1,13 @@
+{
+  "sensor_type_overrides": {
+    "15": "temperature",
+    "18": "temperature"
+  },
+  "excluded_sensor_ids": [16],
+  "event_hour_convention": "one_based_interval",
+  "event_label_policy": "recorded_indicator",
+  "near_accident_thresholds": null,
+  "assume_event_log_complete": true,
+  "prediction_cutoff": "target_hour_start",
+  "max_feature_age_hours": 1
+}
