@@ -22,7 +22,7 @@ The router command returns whether weather or darkness calls for the weather-mod
 
 The ZIP includes the fitted primary model, its training support records, and the replay fixtures. From inside `Code`, use `python .\run.py gui`. Start with the replay mode, choose a scenario, and click **Evaluate**. The default weather inputs produce 80 km/h for `good` air and 50 km/h for `poor` air. The `stale` and `malformed` scenarios exercise review handling. For the weather branch, enter 0.1 lux, 200 micrometers of water and -4 Celsius. This example shows candidate details and review status.
 
-Choose `custom` and enter a European AQI from 0 to 500 to test specific policy boundaries. With clear weather, 20 gives 80 km/h and 20.01 rounds up to 21 and gives 70 km/h. In the CLI use `--scenario custom --replay-aqi 20.01`. Custom AQI uses placeholder pollutants and a simulated policy response. The `policy_mismatch` preset demonstrates rejection of a cap that conflicts with the policy.
+Replay presets fill the European AQI field. Edit the value directly to switch to `custom` and test any AQI from 0 to 500. With clear weather, 20 gives 80 km/h and 20.01 rounds up to 21 and gives 70 km/h. In the CLI use `--scenario custom --replay-aqi 20.01`. Custom AQI uses placeholder pollutants and a simulated policy response. The `policy_mismatch` preset demonstrates rejection of a cap that conflicts with the policy.
 
 The weather branch evaluates 70, 60, 50 and 40 km/h. A candidate needs observations at the same speed and weather branch within the joint training neighborhood and the observed feature ranges. Of the supported candidates with a predicted count at most one, it chooses the highest speed. A required branch that cannot recommend a cap leaves the overall decision for review. The packaged fit required review on all 70 weather-triggered holdout hours at this milestone's support settings.
 
@@ -30,7 +30,7 @@ The GUI shows both caps, reasons, input mode and data provenance. **Acknowledge 
 
 ### Live air-quality mode
 
-Select `live`, enter the road location's latitude and longitude and evaluate. SpeedLimit fetches the current UTC hour's European AQI forecast from Open-Meteo and asks the project-selected `qwen3:4b` model through the local Ollama service. Python validates the structured answer against `config/air_policy.json`. The operator enters road and weather data only.
+Select `live` and evaluate with the default Vienna coordinates (48.2082, 16.3738), or enter the road's coordinates. Light, road water and temperature still drive the weather branch. The coordinates select the current UTC hour's European AQI forecast from Open-Meteo. SpeedLimit sends the air data to `qwen3:4b` through the local Ollama service and validates the structured answer against `config/air_policy.json`.
 
 For a new Windows machine, the project maintainer installs Ollama and runs `powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\setup_ollama.ps1` from the Code folder. This starts the local service when needed and downloads the project model if missing. The model occupies about 2.5 GB and is provisioned separately from the code ZIP. Open-Meteo still needs internet access. A missing local model, unavailable service or policy mismatch returns **Review needed**.
 

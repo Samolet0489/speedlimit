@@ -446,6 +446,14 @@ class _CustomReplayResponse:
                            "limit_kmh": band["limit_kmh"], "reason_code": band["reason_code"]})
 
 
+def _load_replay_scenarios(replay_path: Path) -> dict:
+    replay = _json_object(Path(replay_path).read_text(encoding="utf-8-sig"))
+    scenarios = replay.get("scenarios")
+    if type(replay.get("schema_version")) is not int or replay["schema_version"] != 1 or not isinstance(scenarios, dict):
+        raise ValueError("Unsupported synthetic air replay format")
+    return scenarios
+
+
 def make_air_advisor(
     *, mode: str, policy_path: Path, replay_path: Path, scenario: str = "good",
     replay_aqi: str | int | float | Decimal | None = None,
@@ -458,10 +466,7 @@ def make_air_advisor(
         return AirQualityAdvisor(policy_path, OpenMeteoAirDataClient(latitude, longitude), OllamaChatLLMClient())
     if mode != "replay":
         raise ValueError("Air-quality mode must be replay or live")
-    replay = _json_object(Path(replay_path).read_text(encoding="utf-8-sig"))
-    scenarios = replay.get("scenarios")
-    if type(replay.get("schema_version")) is not int or replay["schema_version"] != 1 or not isinstance(scenarios, dict):
-        raise ValueError("Unsupported synthetic air replay format")
+    scenarios = _load_replay_scenarios(replay_path)
     if scenario == "custom":
         aqi = parse_replay_aqi(replay_aqi)
         baseline = scenarios.get("good")

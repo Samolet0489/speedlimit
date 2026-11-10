@@ -9,13 +9,13 @@ from decimal import Decimal, InvalidOperation
 from queue import Empty, SimpleQueue
 from threading import Thread
 
-from .air_quality import REPLAY_SCENARIOS, parse_replay_aqi
+from .air_quality import AQI_FIELD, REPLAY_SCENARIOS, _load_replay_scenarios, parse_replay_aqi
 
 
 _DEFAULT_INPUTS = {
     "illuminance_lux": "1000", "water_um": "0", "temperature_c": "10",
     "mode": "replay", "scenario": "good", "replay_aqi": "",
-    "latitude": "", "longitude": "",
+    "latitude": "48.2082", "longitude": "16.3738",
 }
 _FIELD_LABELS = {
     "illuminance_lux": "Illuminance (lux)", "water_um": "Road water (µm)",
@@ -24,6 +24,13 @@ _FIELD_LABELS = {
 }
 _MODES = {"replay": "Replay · simulated air data", "live": "Live · Open-Meteo and local Ollama"}
 _REFRESH_MS = 60_000
+_NAVY = "#102A43"
+_PANEL = "#19374F"
+_FIELD = "#122D45"
+_WHITE = "#F6FAFC"
+_PALE_BLUE = "#CADFEA"
+_BORDER = "#58748B"
+_ACCENT = "#075985"
 
 
 class _InputError(ValueError):
@@ -57,6 +64,7 @@ def _validated_inputs(raw: dict) -> dict:
         for field, bound in (("latitude", 90), ("longitude", 180)):
             if not -bound <= _number(payload, field) <= bound:
                 raise _InputError(field, f"{_FIELD_LABELS[field]} must be between {-bound} and {bound}.")
+        payload.update(scenario="", replay_aqi="")
     else:
         if payload["scenario"] not in REPLAY_SCENARIOS:
             raise _InputError("scenario", "Choose a replay scenario.")
@@ -264,19 +272,67 @@ def _result_details(result: dict | None) -> str:
     return "\n".join(lines)
 
 
+def _style_operator(root, ttk) -> None:
+    style = ttk.Style(root)
+    style.theme_use("clam")
+    root.configure(background=_NAVY)
+    style.configure(".", background=_NAVY, foreground=_WHITE, font=("Segoe UI", 10), focuscolor=_PALE_BLUE)
+    style.configure("Panel.TFrame", background=_PANEL)
+    style.configure("Panel.TLabel", background=_PANEL)
+    style.configure("TLabelframe", background=_PANEL, bordercolor=_BORDER, borderwidth=1,
+                    lightcolor=_PANEL, darkcolor=_PANEL, relief="solid")
+    style.configure("TLabelframe.Label", background=_NAVY, foreground=_PALE_BLUE, font=("Segoe UI", 10, "bold"))
+
+    for widget in ("TEntry", "TCombobox"):
+        style.configure(widget, fieldbackground=_FIELD, foreground=_WHITE, background=_PANEL,
+                        bordercolor=_BORDER, lightcolor=_FIELD, darkcolor=_FIELD,
+                        insertcolor=_WHITE, selectbackground=_ACCENT, selectforeground=_WHITE, padding=(8, 4))
+        style.map(widget, bordercolor=[("focus", _PALE_BLUE)])
+    style.configure("TCombobox", arrowcolor=_PALE_BLUE, arrowsize=12)
+    style.map("TCombobox", fieldbackground=[("readonly", _FIELD)], foreground=[("readonly", _WHITE)])
+    root.option_add("*TCombobox*Listbox.background", _FIELD)
+    root.option_add("*TCombobox*Listbox.foreground", _WHITE)
+    root.option_add("*TCombobox*Listbox.selectBackground", _ACCENT)
+    root.option_add("*TCombobox*Listbox.selectForeground", _WHITE)
+
+    style.configure("TButton", background=_PANEL, bordercolor=_BORDER, borderwidth=1,
+                    lightcolor=_PANEL, darkcolor=_PANEL, relief="flat", padding=(13, 6))
+    style.map("TButton", background=[("disabled", _FIELD), ("pressed", _NAVY), ("active", "#244762")],
+              foreground=[("disabled", "#9CB4C8")])
+    style.configure("Primary.TButton", background=_ACCENT, font=("Segoe UI", 10, "bold"))
+    style.map("Primary.TButton", background=[("disabled", _FIELD), ("pressed", "#074A70"), ("active", "#126B9A")])
+    style.configure("TCheckbutton", indicatorforeground=_PALE_BLUE, upperbordercolor=_BORDER, lowerbordercolor=_BORDER)
+    style.map("TCheckbutton", background=[("active", _NAVY)],
+              indicatorbackground=[("selected", _ACCENT), ("!selected", _FIELD)])
+    style.configure("Vertical.TScrollbar", background=_PANEL, troughcolor=_FIELD, bordercolor=_BORDER,
+                    lightcolor=_PANEL, darkcolor=_PANEL, arrowcolor=_PALE_BLUE, arrowsize=12)
+    style.map("Vertical.TScrollbar", background=[("active", "#244762")])
+
+
 def run_gui(evaluate: Callable[[dict], dict], acknowledge: Callable[[dict], None] | None = None) -> None:
     """Open the simulator. Callback work runs off Tk's main thread."""
     import tkinter as tk
     from tkinter import ttk
+
+    from .runtime import CONFIG
+
+    try:
+        presets = _load_replay_scenarios(CONFIG / "air_replay.json")
+    except (OSError, ValueError):
+        # A broken replay fixture can still be reported during evaluation.
+        presets = {}
+    preset_aqis = {name: str(fixture[AQI_FIELD]) for name, fixture in presets.items()
+                   if isinstance(fixture, dict) and fixture.get(AQI_FIELD) is not None}
 
     session = _OperatorSession(evaluate, acknowledge)
     try:
         root = tk.Tk()
     except tk.TclError as exc:
         raise RuntimeError("The operator window needs a graphical desktop with Tk available.") from exc
+    _style_operator(root, ttk)
     root.title("SpeedLimit operator simulator")
     root.geometry("960x720")
-    root.minsize(730, 535)
+    root.minsize(730, 610)
     root.columnconfigure(0, weight=1)
     root.rowconfigure(0, weight=1)
     page = ttk.Frame(root, padding=20)
@@ -284,37 +340,41 @@ def run_gui(evaluate: Callable[[dict], dict], acknowledge: Callable[[dict], None
     page.columnconfigure(0, weight=1)
     page.rowconfigure(5, weight=1)
 
-    ttk.Label(page, text="SpeedLimit operator simulator", font=("Segoe UI", 22, "bold")).grid(row=0, sticky="w")
-    ttk.Label(page, text="Enter road conditions and review a simulated speed recommendation.").grid(row=1, sticky="w", pady=(2, 12))
+    ttk.Label(page, text="SpeedLimit", font=("Segoe UI", 27, "bold")).grid(row=0, sticky="w")
+    ttk.Label(page, text="Variable speed limits for an operator simulator", foreground=_PALE_BLUE).grid(
+        row=1, sticky="w", pady=(1, 14))
 
     inputs = {key: tk.StringVar(root, value=value) for key, value in _DEFAULT_INPUTS.items()}
+    inputs["replay_aqi"].set(preset_aqis.get(inputs["scenario"].get(), ""))
+    syncing_replay = False
     fields = {}
     weather = ttk.LabelFrame(page, text="Weather inputs", padding=(12, 8))
     weather.grid(row=2, sticky="ew", pady=(0, 8))
     for column, key in enumerate(("illuminance_lux", "water_um", "temperature_c")):
         weather.columnconfigure(column, weight=1, uniform="weather")
-        ttk.Label(weather, text=_FIELD_LABELS[key]).grid(row=0, column=column, sticky="w", padx=(0, 8))
+        ttk.Label(weather, text=_FIELD_LABELS[key], style="Panel.TLabel").grid(
+            row=0, column=column, sticky="w", padx=(0, 8))
         fields[key] = ttk.Entry(weather, textvariable=inputs[key], width=15)
         fields[key].grid(row=1, column=column, sticky="ew", padx=(0, 8), pady=(3, 2))
 
     source = ttk.LabelFrame(page, text="Air-quality source", padding=(12, 8))
     source.grid(row=3, sticky="ew", pady=(0, 8))
     source.columnconfigure(0, weight=1)
-    mode_row = ttk.Frame(source)
+    mode_row = ttk.Frame(source, style="Panel.TFrame")
     mode_row.grid(row=0, sticky="w", pady=(0, 6))
-    ttk.Label(mode_row, text="Mode").pack(side="left", padx=(0, 8))
+    ttk.Label(mode_row, text="Mode", style="Panel.TLabel").pack(side="left", padx=(0, 8))
     fields["mode"] = ttk.Combobox(mode_row, textvariable=inputs["mode"], values=tuple(_MODES),
                                  state="readonly", width=13)
     fields["mode"].pack(side="left")
 
-    replay_fields = ttk.Frame(source)
-    live_fields = ttk.Frame(source)
+    replay_fields = ttk.Frame(source, style="Panel.TFrame")
+    live_fields = ttk.Frame(source, style="Panel.TFrame")
     for group, keys in ((replay_fields, ("scenario", "replay_aqi")),
                         (live_fields, ("latitude", "longitude"))):
         group.grid(row=1, column=0, sticky="ew")
         for column, key in enumerate(keys):
             group.columnconfigure(column, weight=1, uniform="air")
-            ttk.Label(group, text=_FIELD_LABELS.get(key, "Replay scenario")).grid(
+            ttk.Label(group, text=_FIELD_LABELS.get(key, "Replay scenario"), style="Panel.TLabel").grid(
                 row=0, column=column, sticky="w", padx=(0, 8))
             if key == "scenario":
                 fields[key] = ttk.Combobox(group, textvariable=inputs[key], values=REPLAY_SCENARIOS,
@@ -322,7 +382,7 @@ def run_gui(evaluate: Callable[[dict], dict], acknowledge: Callable[[dict], None
             else:
                 fields[key] = ttk.Entry(group, textvariable=inputs[key], width=15)
             fields[key].grid(row=1, column=column, sticky="ew", padx=(0, 8), pady=(3, 2))
-    source_note = ttk.Label(source, wraplength=640)
+    source_note = ttk.Label(source, wraplength=640, foreground=_PALE_BLUE, style="Panel.TLabel")
     source_note.grid(row=2, column=0, sticky="w", pady=(3, 0))
 
     actions = ttk.Frame(page)
@@ -335,12 +395,14 @@ def run_gui(evaluate: Callable[[dict], dict], acknowledge: Callable[[dict], None
     output.grid(row=5, sticky="nsew")
     output.columnconfigure(0, weight=1)
     output.rowconfigure(2, weight=1)
-    heading = ttk.Label(output, font=("Segoe UI", 19, "bold"))
+    heading = ttk.Label(output, font=("Segoe UI", 21, "bold"), foreground=_PALE_BLUE, style="Panel.TLabel")
     heading.grid(row=0, column=0, columnspan=2, sticky="w")
-    message = ttk.Label(output, wraplength=650)
+    message = ttk.Label(output, wraplength=650, style="Panel.TLabel")
     message.grid(row=1, column=0, columnspan=2, sticky="w", pady=(1, 7))
     details = tk.Text(output, wrap="word", height=8, width=1, borderwidth=0,
-                      font=("Segoe UI", 11), padx=6, pady=5, takefocus=True)
+                      background=_FIELD, foreground=_WHITE, selectbackground=_ACCENT, selectforeground=_WHITE,
+                      highlightthickness=1, highlightbackground=_BORDER, highlightcolor=_PALE_BLUE,
+                      font=("Segoe UI", 11), padx=10, pady=7, takefocus=True)
     details.grid(row=2, column=0, sticky="nsew")
     scrollbar = ttk.Scrollbar(output, command=details.yview)
     scrollbar.grid(row=2, column=1, sticky="ns")
@@ -385,10 +447,23 @@ def run_gui(evaluate: Callable[[dict], dict], acknowledge: Callable[[dict], None
         schedule_refresh()
 
     def on_edit(key: str) -> None:
+        nonlocal syncing_replay
+        if syncing_replay:
+            return
+        if key in ("scenario", "replay_aqi"):
+            # Only operator edits switch to Custom. Filling a preset also fires a Tk trace.
+            syncing_replay = True
+            try:
+                if key == "replay_aqi":
+                    inputs["scenario"].set("custom")
+                elif inputs["scenario"].get() != "custom":
+                    inputs["replay_aqi"].set(preset_aqis.get(inputs["scenario"].get(), ""))
+            finally:
+                syncing_replay = False
         if key == "mode":
             refresh.set(False)
             schedule_refresh()
-        update_source_note()
+            update_source_note()
         session.edit()
         render()
 
@@ -396,14 +471,14 @@ def run_gui(evaluate: Callable[[dict], dict], acknowledge: Callable[[dict], None
         if inputs["mode"].get() == "live":
             replay_fields.grid_remove()
             live_fields.grid()
-            source_note.configure(text="Enter the road coordinates. Live uses Open-Meteo and the project's local Ollama model.")
+            source_note.configure(text=(
+                "Light, road water and temperature drive the weather branch. Coordinates default to Vienna. "
+                "Air uses the current-hour Open-Meteo forecast for those coordinates and the project's local Ollama model."
+            ))
         else:
             live_fields.grid_remove()
             replay_fields.grid()
-            custom = inputs["scenario"].get() == "custom"
-            fields["replay_aqi"].configure(state="normal" if custom else "disabled")
-            guidance = "Enter an AQI to test the speed policy." if custom else "Choose custom to enter a specific AQI."
-            source_note.configure(text=f"Replay uses simulated data and responses. {guidance}")
+            source_note.configure(text="Choose a preset or edit the AQI to switch to Custom. Replay uses simulated air data and responses.")
 
     def poll() -> None:
         nonlocal poll_timer
@@ -419,7 +494,7 @@ def run_gui(evaluate: Callable[[dict], dict], acknowledge: Callable[[dict], None
             root.after_cancel(refresh_timer)
         root.destroy()
 
-    evaluate_button = ttk.Button(actions, text="Evaluate", command=start_evaluation)
+    evaluate_button = ttk.Button(actions, text="Evaluate", command=start_evaluation, style="Primary.TButton")
     evaluate_button.pack(side="left")
     acknowledge_button = ttk.Button(actions, text="Acknowledge result", command=record_acknowledgment)
     acknowledge_button.pack(side="left", padx=8)
