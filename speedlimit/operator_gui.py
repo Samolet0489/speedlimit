@@ -24,13 +24,19 @@ _FIELD_LABELS = {
 }
 _MODES = {"replay": "Replay · simulated air data", "live": "Live · Open-Meteo and local Ollama"}
 _REFRESH_MS = 60_000
-_NAVY = "#102A43"
-_PANEL = "#19374F"
-_FIELD = "#122D45"
-_WHITE = "#F6FAFC"
-_PALE_BLUE = "#CADFEA"
-_BORDER = "#58748B"
-_ACCENT = "#075985"
+_CANVAS = "#EDF3F1"
+_SURFACE = "#FFFFFF"
+_INK = "#182824"
+_MUTED = "#50625C"
+_BORDER = "#CCDAD4"
+_FOREST = "#145947"
+_WASH = "#E7F2ED"
+_HERO_TEXT = "#EDF8EF"
+_HERO_PALETTES = {
+    "neutral": ("#263C37", "#D7E4DD", "#4E655C", "#97AAA0"),
+    "recommended": ("#123B34", "#C3DCD1", "#40665A", "#DC6353"),
+    "review": ("#492F25", "#F1D6C7", "#765142", "#E8AB73"),
+}
 
 
 class _InputError(ValueError):
@@ -215,7 +221,7 @@ class _OperatorSession:
         self.result = completion.value
         self.status = self.result["status"]
         if self.status == "recommended":
-            self.message = "Review the reasons and acknowledge the simulated recommendation."
+            self.message = "Awaiting acknowledgment"
         else:
             self.message = "Review the reasons before evaluating again."
 
@@ -275,38 +281,51 @@ def _result_details(result: dict | None) -> str:
 def _style_operator(root, ttk) -> None:
     style = ttk.Style(root)
     style.theme_use("clam")
-    root.configure(background=_NAVY)
-    style.configure(".", background=_NAVY, foreground=_WHITE, font=("Segoe UI", 10), focuscolor=_PALE_BLUE)
-    style.configure("Panel.TFrame", background=_PANEL)
-    style.configure("Panel.TLabel", background=_PANEL)
-    style.configure("TLabelframe", background=_PANEL, bordercolor=_BORDER, borderwidth=1,
-                    lightcolor=_PANEL, darkcolor=_PANEL, relief="solid")
-    style.configure("TLabelframe.Label", background=_NAVY, foreground=_PALE_BLUE, font=("Segoe UI", 10, "bold"))
+    root.configure(background=_CANVAS)
+    style.configure(".", background=_CANVAS, foreground=_INK, font=("Segoe UI", 10), focuscolor=_FOREST)
+    style.configure("Surface.TFrame", background=_SURFACE)
+    style.configure("Card.TFrame", background=_SURFACE, bordercolor=_BORDER, borderwidth=1,
+                    lightcolor=_BORDER, darkcolor=_BORDER, relief="solid")
+    style.configure("Surface.TLabel", background=_SURFACE, foreground=_INK)
+    style.configure("Muted.Surface.TLabel", foreground=_MUTED, font=("Segoe UI", 9))
+    style.configure("Section.Surface.TLabel", font=("Segoe UI", 11, "bold"))
+    style.configure("Title.Surface.TLabel", font=("Segoe UI", 15, "bold"))
+    style.configure("Brand.TLabel", background=_FOREST, foreground=_SURFACE, padding=(10, 3),
+                    font=("Segoe UI", 17, "bold"))
+    style.configure("Desk.TSeparator", background=_BORDER)
 
     for widget in ("TEntry", "TCombobox"):
-        style.configure(widget, fieldbackground=_FIELD, foreground=_WHITE, background=_PANEL,
-                        bordercolor=_BORDER, lightcolor=_FIELD, darkcolor=_FIELD,
-                        insertcolor=_WHITE, selectbackground=_ACCENT, selectforeground=_WHITE, padding=(8, 4))
-        style.map(widget, bordercolor=[("focus", _PALE_BLUE)])
-    style.configure("TCombobox", arrowcolor=_PALE_BLUE, arrowsize=12)
-    style.map("TCombobox", fieldbackground=[("readonly", _FIELD)], foreground=[("readonly", _WHITE)])
-    root.option_add("*TCombobox*Listbox.background", _FIELD)
-    root.option_add("*TCombobox*Listbox.foreground", _WHITE)
-    root.option_add("*TCombobox*Listbox.selectBackground", _ACCENT)
-    root.option_add("*TCombobox*Listbox.selectForeground", _WHITE)
+        style.configure(widget, fieldbackground=_SURFACE, foreground=_INK, background=_WASH,
+                        bordercolor=_BORDER, lightcolor=_SURFACE, darkcolor=_SURFACE,
+                        insertcolor=_INK, selectbackground=_FOREST, selectforeground=_SURFACE, padding=(8, 5))
+        style.map(widget, bordercolor=[("invalid", "#A34128"), ("focus", _FOREST)])
+    style.configure("TCombobox", arrowcolor=_FOREST, arrowsize=12)
+    style.map("TCombobox", fieldbackground=[("readonly", _SURFACE)], foreground=[("readonly", _INK)])
+    for option, color in (("background", _SURFACE), ("foreground", _INK),
+                          ("selectBackground", _FOREST), ("selectForeground", _SURFACE)):
+        root.option_add(f"*TCombobox*Listbox.{option}", color)
 
-    style.configure("TButton", background=_PANEL, bordercolor=_BORDER, borderwidth=1,
-                    lightcolor=_PANEL, darkcolor=_PANEL, relief="flat", padding=(13, 6))
-    style.map("TButton", background=[("disabled", _FIELD), ("pressed", _NAVY), ("active", "#244762")],
-              foreground=[("disabled", "#9CB4C8")])
-    style.configure("Primary.TButton", background=_ACCENT, font=("Segoe UI", 10, "bold"))
-    style.map("Primary.TButton", background=[("disabled", _FIELD), ("pressed", "#074A70"), ("active", "#126B9A")])
-    style.configure("TCheckbutton", indicatorforeground=_PALE_BLUE, upperbordercolor=_BORDER, lowerbordercolor=_BORDER)
-    style.map("TCheckbutton", background=[("active", _NAVY)],
-              indicatorbackground=[("selected", _ACCENT), ("!selected", _FIELD)])
-    style.configure("Vertical.TScrollbar", background=_PANEL, troughcolor=_FIELD, bordercolor=_BORDER,
-                    lightcolor=_PANEL, darkcolor=_PANEL, arrowcolor=_PALE_BLUE, arrowsize=12)
-    style.map("Vertical.TScrollbar", background=[("active", "#244762")])
+    style.configure("TButton", background=_WASH, foreground=_FOREST, bordercolor=_BORDER,
+                    lightcolor=_WASH, darkcolor=_WASH, borderwidth=1, relief="flat",
+                    padding=(12, 7), font=("Segoe UI", 10, "bold"))
+    style.map("TButton", background=[("disabled", _CANVAS), ("pressed", "#C6E0D4"), ("active", "#D8EAE1")],
+              foreground=[("disabled", _MUTED)])
+    style.configure("Primary.TButton", background=_FOREST, foreground=_SURFACE, bordercolor=_FOREST,
+                    lightcolor=_FOREST, darkcolor=_FOREST)
+    style.map("Primary.TButton", background=[("disabled", _WASH), ("pressed", "#103F34"), ("active", "#1C6A54")],
+              foreground=[("disabled", _MUTED)], focuscolor=[("focus", _SURFACE)])
+    style.layout("Mode.TRadiobutton", style.layout("TButton"))
+    style.configure("Mode.TRadiobutton", background=_CANVAS, foreground=_MUTED, bordercolor=_BORDER,
+                    lightcolor=_CANVAS, darkcolor=_CANVAS, padding=(8, 6), font=("Segoe UI", 10, "bold"))
+    style.map("Mode.TRadiobutton", background=[("selected", _WASH), ("active", _WASH)],
+              foreground=[("selected", _FOREST)], bordercolor=[("selected", _FOREST), ("focus", _FOREST)])
+    style.configure("Refresh.TCheckbutton", background=_SURFACE, foreground=_MUTED, indicatorforeground=_FOREST,
+                    upperbordercolor=_BORDER, lowerbordercolor=_BORDER)
+    style.map("Refresh.TCheckbutton", background=[("active", _SURFACE)],
+              indicatorbackground=[("selected", _WASH), ("!selected", _SURFACE)])
+    style.configure("Vertical.TScrollbar", background=_WASH, troughcolor=_CANVAS, bordercolor=_BORDER,
+                    lightcolor=_WASH, darkcolor=_WASH, arrowcolor=_FOREST, arrowsize=12)
+    style.map("Vertical.TScrollbar", background=[("active", "#D8EAE1")])
 
 
 def run_gui(evaluate: Callable[[dict], dict], acknowledge: Callable[[dict], None] | None = None) -> None:
@@ -331,91 +350,186 @@ def run_gui(evaluate: Callable[[dict], dict], acknowledge: Callable[[dict], None
         raise RuntimeError("The operator window needs a graphical desktop with Tk available.") from exc
     _style_operator(root, ttk)
     root.title("SpeedLimit operator simulator")
-    root.geometry("960x720")
-    root.minsize(730, 610)
+    root.geometry("1000x640")
+    root.minsize(840, 530)
     root.columnconfigure(0, weight=1)
-    root.rowconfigure(0, weight=1)
+    root.rowconfigure(1, weight=1)
+    masthead = ttk.Frame(root, padding=(22, 12), style="Surface.TFrame")
+    masthead.grid(row=0, column=0, sticky="ew")
+    masthead.columnconfigure(1, weight=1)
+    ttk.Label(masthead, text="↗", style="Brand.TLabel").grid(row=0, column=0, rowspan=2, padx=(0, 12))
+    ttk.Label(masthead, text="SpeedLimit", style="Title.Surface.TLabel").grid(row=0, column=1, sticky="sw")
+    ttk.Label(masthead, text="Operator simulator", style="Muted.Surface.TLabel").grid(row=1, column=1, sticky="nw")
+    source_badge = ttk.Label(masthead, style="Muted.Surface.TLabel")
+    source_badge.grid(row=0, column=2, rowspan=2, sticky="e")
     page = ttk.Frame(root, padding=20)
-    page.grid(sticky="nsew")
-    page.columnconfigure(0, weight=1)
-    page.rowconfigure(5, weight=1)
+    page.grid(row=1, column=0, sticky="nsew")
+    page.columnconfigure(0, weight=1, minsize=365)
+    page.columnconfigure(1, weight=2, minsize=420)
+    page.rowconfigure(0, weight=1)
 
-    ttk.Label(page, text="SpeedLimit", font=("Segoe UI", 27, "bold")).grid(row=0, sticky="w")
-    ttk.Label(page, text="Variable speed limits for an operator simulator", foreground=_PALE_BLUE).grid(
-        row=1, sticky="w", pady=(1, 14))
+    input_panel = ttk.Frame(page, padding=18, style="Card.TFrame")
+    input_panel.grid(row=0, column=0, sticky="new", padx=(0, 14))
+    input_panel.columnconfigure(0, weight=1)
+    ttk.Label(input_panel, text="Evaluation inputs", style="Title.Surface.TLabel").grid(
+        row=0, sticky="w", pady=(0, 16))
 
     inputs = {key: tk.StringVar(root, value=value) for key, value in _DEFAULT_INPUTS.items()}
     inputs["replay_aqi"].set(preset_aqis.get(inputs["scenario"].get(), ""))
     syncing_replay = False
     fields = {}
-    weather = ttk.LabelFrame(page, text="Weather inputs", padding=(12, 8))
-    weather.grid(row=2, sticky="ew", pady=(0, 8))
-    for column, key in enumerate(("illuminance_lux", "water_um", "temperature_c")):
-        weather.columnconfigure(column, weight=1, uniform="weather")
-        ttk.Label(weather, text=_FIELD_LABELS[key], style="Panel.TLabel").grid(
-            row=0, column=column, sticky="w", padx=(0, 8))
-        fields[key] = ttk.Entry(weather, textvariable=inputs[key], width=15)
-        fields[key].grid(row=1, column=column, sticky="ew", padx=(0, 8), pady=(3, 2))
+    ttk.Label(input_panel, text="Air-quality source", style="Section.Surface.TLabel").grid(
+        row=1, sticky="w", pady=(0, 6))
+    mode_row = ttk.Frame(input_panel, style="Surface.TFrame")
+    mode_row.grid(row=2, sticky="ew", pady=(0, 10))
+    for column, (mode, label) in enumerate((("replay", "Replay"), ("live", "Live"))):
+        mode_row.columnconfigure(column, weight=1, uniform="mode")
+        ttk.Radiobutton(mode_row, text=label, value=mode, variable=inputs["mode"],
+                        style="Mode.TRadiobutton").grid(row=0, column=column, sticky="ew")
 
-    source = ttk.LabelFrame(page, text="Air-quality source", padding=(12, 8))
-    source.grid(row=3, sticky="ew", pady=(0, 8))
-    source.columnconfigure(0, weight=1)
-    mode_row = ttk.Frame(source, style="Panel.TFrame")
-    mode_row.grid(row=0, sticky="w", pady=(0, 6))
-    ttk.Label(mode_row, text="Mode", style="Panel.TLabel").pack(side="left", padx=(0, 8))
-    fields["mode"] = ttk.Combobox(mode_row, textvariable=inputs["mode"], values=tuple(_MODES),
-                                 state="readonly", width=13)
-    fields["mode"].pack(side="left")
-
-    replay_fields = ttk.Frame(source, style="Panel.TFrame")
-    live_fields = ttk.Frame(source, style="Panel.TFrame")
-    for group, keys in ((replay_fields, ("scenario", "replay_aqi")),
+    replay_fields = ttk.Frame(input_panel, style="Surface.TFrame")
+    live_fields = ttk.Frame(input_panel, style="Surface.TFrame")
+    weather = ttk.Frame(input_panel, style="Surface.TFrame")
+    for group, keys in ((weather, ("illuminance_lux", "water_um", "temperature_c")),
+                        (replay_fields, ("scenario", "replay_aqi")),
                         (live_fields, ("latitude", "longitude"))):
-        group.grid(row=1, column=0, sticky="ew")
         for column, key in enumerate(keys):
-            group.columnconfigure(column, weight=1, uniform="air")
-            ttk.Label(group, text=_FIELD_LABELS.get(key, "Replay scenario"), style="Panel.TLabel").grid(
-                row=0, column=column, sticky="w", padx=(0, 8))
+            group.columnconfigure(column, weight=1)
+            gap = (0, 8) if column < len(keys) - 1 else 0
+            ttk.Label(group, text=_FIELD_LABELS.get(key, "Scenario"), style="Muted.Surface.TLabel").grid(
+                row=0, column=column, sticky="w", padx=gap)
             if key == "scenario":
                 fields[key] = ttk.Combobox(group, textvariable=inputs[key], values=REPLAY_SCENARIOS,
-                                           state="readonly", width=15)
+                                           state="readonly", width=14)
             else:
-                fields[key] = ttk.Entry(group, textvariable=inputs[key], width=15)
-            fields[key].grid(row=1, column=column, sticky="ew", padx=(0, 8), pady=(3, 2))
-    source_note = ttk.Label(source, wraplength=640, foreground=_PALE_BLUE, style="Panel.TLabel")
-    source_note.grid(row=2, column=0, sticky="w", pady=(3, 0))
-
-    actions = ttk.Frame(page)
-    actions.grid(row=4, sticky="ew", pady=(2, 10))
+                fields[key] = ttk.Entry(group, textvariable=inputs[key], width=9)
+            fields[key].grid(row=1, column=column, sticky="ew", padx=gap, pady=(3, 0))
+    replay_fields.grid(row=3, sticky="ew")
+    live_fields.grid(row=3, sticky="ew")
+    source_note = ttk.Label(input_panel, wraplength=310, style="Muted.Surface.TLabel")
+    source_note.grid(row=4, sticky="w", pady=(8, 16))
+    ttk.Label(input_panel, text="Road conditions", style="Section.Surface.TLabel").grid(
+        row=5, sticky="w", pady=(0, 6))
+    weather.grid(row=6, sticky="ew")
+    ttk.Separator(input_panel, style="Desk.TSeparator").grid(row=7, sticky="ew", pady=14)
     refresh = tk.BooleanVar(root, value=False)
     refresh_timer = None
     poll_timer = None
 
-    output = ttk.LabelFrame(page, text="Current decision", padding=(12, 8))
-    output.grid(row=5, sticky="nsew")
+    output = ttk.Frame(page, style="Card.TFrame")
+    output.grid(row=0, column=1, sticky="new")
     output.columnconfigure(0, weight=1)
-    output.rowconfigure(2, weight=1)
-    heading = ttk.Label(output, font=("Segoe UI", 21, "bold"), foreground=_PALE_BLUE, style="Panel.TLabel")
-    heading.grid(row=0, column=0, columnspan=2, sticky="w")
-    message = ttk.Label(output, wraplength=650, style="Panel.TLabel")
-    message.grid(row=1, column=0, columnspan=2, sticky="w", pady=(1, 7))
-    details = tk.Text(output, wrap="word", height=8, width=1, borderwidth=0,
-                      background=_FIELD, foreground=_WHITE, selectbackground=_ACCENT, selectforeground=_WHITE,
-                      highlightthickness=1, highlightbackground=_BORDER, highlightcolor=_PALE_BLUE,
-                      font=("Segoe UI", 11), padx=10, pady=7, takefocus=True)
-    details.grid(row=2, column=0, sticky="nsew")
-    scrollbar = ttk.Scrollbar(output, command=details.yview)
-    scrollbar.grid(row=2, column=1, sticky="ns")
+    output.rowconfigure(4, weight=1)
+    hero = tk.Frame(output, padx=18, pady=16)
+    hero.grid(row=0, sticky="ew")
+    hero.columnconfigure(1, weight=1)
+    hero_labels = []
+
+    def hero_label(parent, *, text="", size=10, bold=False, secondary=False):
+        label = tk.Label(parent, text=text, font=("Segoe UI", size, "bold" if bold else "normal"),
+                         justify="left", anchor="w", padx=0, pady=0)
+        hero_labels.append((label, secondary))
+        return label
+
+    hero_label(hero, text="Current decision", size=12, bold=True).grid(row=0, column=0, sticky="w")
+    status_label = hero_label(hero, size=9, bold=True, secondary=True)
+    status_label.grid(row=0, column=1, sticky="e", padx=(8, 0))
+    sign = tk.Canvas(hero, width=106, height=106, bd=0, highlightthickness=0, name="speed_sign")
+    sign.grid(row=1, column=0, sticky="w", pady=16)
+    ring = sign.create_oval(4, 4, 102, 102, width=5, fill="#F9FAF5")
+    speed_text = sign.create_text(53, 44, font=("Segoe UI", -40, "bold"), fill=_INK, tags="speed")
+    speed_unit = sign.create_text(53, 73, text="km/h", font=("Segoe UI", 9, "bold"), fill=_INK)
+    explanation = tk.Frame(hero)
+    explanation.grid(row=1, column=1, sticky="ew", padx=(14, 0), pady=16)
+    heading = hero_label(explanation, size=17, bold=True)
+    heading.pack(fill="x")
+    message = hero_label(explanation, secondary=True)
+    message.pack(fill="x", pady=(5, 0))
+    divider = tk.Frame(hero, height=1)
+    divider.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0, 9))
+    caps = tk.Frame(hero)
+    caps.grid(row=3, column=0, columnspan=2, sticky="ew")
+    cap_values = {}
+    for column, (branch, label) in enumerate((("weather", "Weather cap"), ("air", "Air-quality cap"))):
+        caps.columnconfigure(column, weight=1, uniform="cap")
+        hero_label(caps, text=label, size=9, secondary=True).grid(row=0, column=column, sticky="w")
+        cap_values[branch] = hero_label(caps, size=14, bold=True)
+        cap_values[branch].grid(row=1, column=column, sticky="w")
+
+    def wrap_explanation(event):
+        for label in (heading, message):
+            label.configure(wraplength=max(1, event.width))
+
+    explanation.bind("<Configure>", wrap_explanation)
+    for label in (heading, message):
+        label.configure(wraplength=205)
+    result_actions = ttk.Frame(output, padding=(16, 10), style="Surface.TFrame")
+    result_actions.grid(row=1, sticky="ew")
+    result_actions.columnconfigure(0, weight=1)
+    acknowledgment_status = ttk.Label(result_actions, style="Muted.Surface.TLabel", wraplength=215)
+    acknowledgment_status.grid(row=0, column=0, sticky="w", padx=(0, 8))
+    ttk.Separator(output, style="Desk.TSeparator").grid(row=2, sticky="ew")
+    details_area = ttk.Frame(output, padding=(16, 0, 16, 12), style="Surface.TFrame")
+    details_area.columnconfigure(0, weight=1)
+    details_area.rowconfigure(0, weight=1)
+    details = tk.Text(details_area, wrap="word", height=1, width=1, borderwidth=0,
+                      background=_CANVAS, foreground=_INK, selectbackground=_FOREST, selectforeground=_SURFACE,
+                      highlightthickness=1, highlightbackground=_BORDER, highlightcolor=_FOREST,
+                      font=("Segoe UI", 10), padx=10, pady=7, takefocus=True)
+    details.grid(row=0, column=0, sticky="nsew")
+    scrollbar = ttk.Scrollbar(details_area, command=details.yview)
+    scrollbar.grid(row=0, column=1, sticky="ns")
     details.configure(yscrollcommand=scrollbar.set)
 
     def render() -> None:
         state, result = session.status, session.result
-        if result and result["status"] == "recommended":
-            title = f"{result['limit_kmh']} km/h · simulated recommendation"
-        else:
-            title = {"evaluating": "Evaluating…", "invalid": "Check the input", "review_needed": "Review needed"}.get(state, "Ready to evaluate")
+        speed = result["limit_kmh"] if result else None
+        weather = result["weather"] if result else {}
+        air = result["air"] if result else {}
+        title = {"evaluating": "Evaluating…", "invalid": "Check the input",
+                 "review_needed": "Review needed"}.get(state, "Ready to evaluate")
+        reason = session.message
+        status_text = "SIMULATED RECOMMENDATION" if speed is not None else "NO RECOMMENDATION"
+        acknowledgment_text = "Decision pending review" if state == "review_needed" else ""
+        if speed is not None:
+            weather_limits = weather.get("limit_kmh") == speed
+            air_limits = air.get("limit_kmh") == speed
+            if weather_limits and air_limits:
+                title, limiting_reason = "Both caps agree", air.get("reason")
+            elif weather_limits:
+                title, limiting_reason = "Weather sets the limit", weather.get("reason")
+            elif air_limits:
+                title, limiting_reason = "Air quality sets the limit", air.get("reason")
+            else:
+                title, limiting_reason = "Speed recommendation", None
+            reason = limiting_reason or next(iter(result["reasons"]), "")
+            acknowledgment_text = session.message
+        elif result:
+            review_reasons = [branch["reason"] for branch in (weather, air)
+                              if branch.get("status") == "review_needed" and branch.get("reason")]
+            if review_reasons:
+                reason = " ".join(dict.fromkeys(review_reasons))
+            elif result["reasons"]:
+                reason = result["reasons"][0]
+        palette = "recommended" if speed is not None else "neutral"
+        if state in ("review_needed", "invalid"):
+            palette = "review"
+        background, secondary, line, ring_color = _HERO_PALETTES[palette]
+        for frame in (hero, caps, explanation, sign):
+            frame.configure(background=background)
+        divider.configure(background=line)
+        for label, is_secondary in hero_labels:
+            label.configure(background=background, foreground=secondary if is_secondary else _HERO_TEXT)
+        sign.itemconfigure(ring, outline=ring_color)
+        sign.itemconfigure(speed_text, text=str(speed) if speed is not None else "—")
+        sign.itemconfigure(speed_unit, state="normal" if speed is not None else "hidden")
+        status_label.configure(text=status_text)
         heading.configure(text=title)
-        message.configure(text=session.message)
+        message.configure(text=reason)
+        acknowledgment_status.configure(text=acknowledgment_text)
+        for branch, data in (("weather", weather), ("air", air)):
+            cap = data.get("limit_kmh")
+            cap_values[branch].configure(text=f"{cap} km/h" if cap is not None else "—")
         details.configure(state="normal")
         details.delete("1.0", "end")
         details.insert("1.0", _result_details(result))
@@ -425,6 +539,8 @@ def run_gui(evaluate: Callable[[dict], dict], acknowledge: Callable[[dict], None
 
     def start_evaluation() -> None:
         session.submit({key: variable.get() for key, variable in inputs.items()})
+        if session.invalid_field in fields:
+            fields[session.invalid_field].state(["invalid"])
         render()
         if session.invalid_field in fields:
             fields[session.invalid_field].focus_set()
@@ -450,6 +566,8 @@ def run_gui(evaluate: Callable[[dict], dict], acknowledge: Callable[[dict], None
         nonlocal syncing_replay
         if syncing_replay:
             return
+        if session.invalid_field in fields:
+            fields[session.invalid_field].state(["!invalid"])
         if key in ("scenario", "replay_aqi"):
             # Only operator edits switch to Custom. Filling a preset also fires a Tk trace.
             syncing_replay = True
@@ -468,17 +586,17 @@ def run_gui(evaluate: Callable[[dict], dict], acknowledge: Callable[[dict], None
         render()
 
     def update_source_note() -> None:
+        source_badge.configure(text=_MODES.get(inputs["mode"].get(), "Choose an air-quality source"))
         if inputs["mode"].get() == "live":
             replay_fields.grid_remove()
             live_fields.grid()
             source_note.configure(text=(
-                "Light, road water and temperature drive the weather branch. Coordinates default to Vienna. "
-                "Air uses the current-hour Open-Meteo forecast for those coordinates and the project's local Ollama model."
+                "Coordinates default to Vienna. Live uses Open-Meteo and the project's local Ollama model."
             ))
         else:
             live_fields.grid_remove()
             replay_fields.grid()
-            source_note.configure(text="Choose a preset or edit the AQI to switch to Custom. Replay uses simulated air data and responses.")
+            source_note.configure(text="Simulated air data and policy response. Edit AQI to switch to custom.")
 
     def poll() -> None:
         nonlocal poll_timer
@@ -494,11 +612,24 @@ def run_gui(evaluate: Callable[[dict], dict], acknowledge: Callable[[dict], None
             root.after_cancel(refresh_timer)
         root.destroy()
 
-    evaluate_button = ttk.Button(actions, text="Evaluate", command=start_evaluation, style="Primary.TButton")
-    evaluate_button.pack(side="left")
-    acknowledge_button = ttk.Button(actions, text="Acknowledge result", command=record_acknowledgment)
-    acknowledge_button.pack(side="left", padx=8)
-    ttk.Checkbutton(actions, text="Re-evaluate every 60 seconds", variable=refresh, command=schedule_refresh).pack(side="right")
+    def toggle_details() -> None:
+        if details_area.winfo_manager():
+            details_area.grid_remove()
+            output.grid_configure(sticky="new")
+            details_button.configure(text="Show decision sources")
+        else:
+            output.grid_configure(sticky="nsew")
+            details_area.grid(row=4, sticky="nsew")
+            details_button.configure(text="Hide decision sources")
+
+    evaluate_button = ttk.Button(input_panel, text="Evaluate", command=start_evaluation, style="Primary.TButton")
+    evaluate_button.grid(row=8, sticky="ew")
+    ttk.Checkbutton(input_panel, text="Re-evaluate every 60 seconds", variable=refresh,
+                    command=schedule_refresh, style="Refresh.TCheckbutton").grid(row=9, sticky="w", pady=(10, 0))
+    acknowledge_button = ttk.Button(result_actions, text="Acknowledge result", command=record_acknowledgment)
+    acknowledge_button.grid(row=0, column=1, sticky="e")
+    details_button = ttk.Button(output, text="Show decision sources", command=toggle_details)
+    details_button.grid(row=3, sticky="w", padx=16, pady=10)
 
     for key, variable in inputs.items():
         variable.trace_add("write", lambda *_args, key=key: on_edit(key))
