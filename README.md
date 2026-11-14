@@ -1,7 +1,7 @@
 # SpeedLimit implementation
 
 Version 0.4.2 runs the operator simulator with the fitted weather model, numeric AQI replay and local Ollama for Live mode. The commands and tests use Python 3.10 or later and the standard library. The GUI uses the Tk installation included with standard Windows Python.
-
+  
 ## Run from the project root
 
 ```powershell
